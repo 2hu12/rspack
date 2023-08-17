@@ -10,13 +10,19 @@ use rustc_hash::FxHasher;
 use crate::DependencyType;
 use crate::{DependencyCategory, Resolve};
 
-pub type ResolveResult = nodejs_resolver::ResolveResult<nodejs_resolver::Resource>;
+#[derive(Debug, Clone)]
+pub enum ResolveResult {
+  Resource(oxc_resolver::Resolution),
+  Ignored,
+}
+
+pub type RResult = Result<ResolveResult, oxc_resolver::ResolveError>;
 
 #[derive(Debug)]
 pub struct ResolverFactory {
-  cache: Arc<nodejs_resolver::Cache>,
+  // cache: Arc<nodejs_resolver::Cache>,
   base_options: Resolve,
-  pub resolver: Resolver,
+  resolver: Resolver,
   resolvers: DashMap<ResolveOptionsWithDependencyType, Arc<Resolver>, BuildHasherDefault<FxHasher>>,
 }
 
@@ -36,18 +42,16 @@ impl Default for ResolverFactory {
 
 impl ResolverFactory {
   pub fn clear_entries(&self) {
-    self.resolver.0.clear_entries();
+    self.resolver.0.clear_cache();
   }
 
   pub fn new(base_options: Resolve) -> Self {
-    let cache = Arc::new(nodejs_resolver::Cache::default());
-    let resolver = Resolver(nodejs_resolver::Resolver::new(
+    let resolver = Resolver(oxc_resolver::Resolver::new(
       base_options
         .clone()
-        .to_inner_options(cache.clone(), false, DependencyCategory::Unknown),
+        .to_inner_options(false, DependencyCategory::Unknown),
     ));
     Self {
-      cache,
       base_options,
       resolvers: Default::default(),
       resolver,
@@ -63,12 +67,9 @@ impl ResolverFactory {
         Some(o) => base_options.merge(o.clone()),
         None => base_options,
       };
-      let normalized = merged_options.to_inner_options(
-        self.cache.clone(),
-        options.resolve_to_context,
-        options.dependency_category,
-      );
-      let resolver = Arc::new(Resolver(nodejs_resolver::Resolver::new(normalized)));
+      let normalized =
+        merged_options.to_inner_options(options.resolve_to_context, options.dependency_category);
+      let resolver = Arc::new(Resolver(self.resolver.0.clone_with_options(normalized)));
       self.resolvers.insert(options, resolver.clone());
       resolver
     }
@@ -76,15 +77,22 @@ impl ResolverFactory {
 }
 
 #[derive(Debug)]
-pub struct Resolver(pub(crate) nodejs_resolver::Resolver);
+pub struct Resolver(pub(crate) oxc_resolver::Resolver);
 
 impl Resolver {
-  pub fn resolve(&self, path: &Path, request: &str) -> nodejs_resolver::RResult<ResolveResult> {
-    self.0.resolve(path, request)
+  pub fn resolve(&self, path: &Path, request: &str) -> RResult {
+    self
+      .0
+      .resolve(path, request)
+      .map(|r| ResolveResult::Resource(r))
+      .or_else(|err| match err {
+        oxc_resolver::ResolveError::Ignored(_) => Ok(ResolveResult::Ignored),
+        _ => Err(err),
+      })
   }
 
-  pub fn options(&self) -> &nodejs_resolver::Options {
-    &self.0.options
+  pub fn options(&self) -> &oxc_resolver::ResolveOptions {
+    self.0.options()
   }
 
   pub fn dependencies(&self) -> (Vec<PathBuf>, Vec<PathBuf>) {

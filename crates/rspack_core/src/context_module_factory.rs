@@ -102,9 +102,9 @@ impl ContextModuleFactory {
     let module = match resource_data {
       Ok(ResolveResult::Resource(resource)) => Box::new(ContextModule::new(
         ContextModuleOptions {
-          resource: resource.path.to_string_lossy().to_string(),
-          resource_query: resource.query,
-          resource_fragment: resource.fragment,
+          resource: resource.path().to_string_lossy().to_string(),
+          resource_query: resource.query().map(ToString::to_string),
+          resource_fragment: resource.fragment().map(ToString::to_string),
           resolve_options: data.resolve_options,
           context_options: data
             .dependency

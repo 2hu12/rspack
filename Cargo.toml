@@ -28,6 +28,7 @@ mimalloc-rust      = { version = "0.2" }
 mime_guess         = { version = "2.0.4" }
 nodejs-resolver    = { version = "0.0.88" }
 once_cell          = { version = "1.18.0" }
+oxc_resolver       = { path = "../oxc/crates/oxc_resolver", version = "0.0.0" }
 paste              = { version = "1.0" }
 pathdiff           = { version = "0.2.1" }
 preset_env_base    = { version = "0.4.5" }
@@ -70,7 +71,7 @@ incremental = true
 
 [profile.release]
 codegen-units = 1
-debug         = false
+debug         = true
 lto           = false # disabled by now, because it will significantly increase our compile time.
 opt-level     = 3
-strip         = true
+strip         = false

@@ -1,12 +1,12 @@
-use std::{path::PathBuf, sync::Arc};
+use std::path::PathBuf;
 
 use hashlink::LinkedHashMap;
 
 use crate::DependencyCategory;
 
-pub type AliasMap = nodejs_resolver::AliasMap;
+pub type AliasMap = oxc_resolver::AliasValue;
 
-pub type Alias = Vec<(String, Vec<AliasMap>)>;
+pub type Alias = oxc_resolver::Alias;
 
 #[derive(Debug, Clone, Default, Hash, PartialEq, Eq)]
 pub struct Resolve {
@@ -46,7 +46,7 @@ pub struct Resolve {
   /// Default is `false`.
   pub fully_specified: Option<bool>,
   /// A list of exports fields in descriptions files
-  /// Default is `[["exports"]]`.
+  /// Default is `["exports"]`.
   pub exports_field: Option<Vec<Vec<String>>>,
   /// A list map ext to another.
   /// Default is `[]`
@@ -57,15 +57,13 @@ pub struct Resolve {
 impl Resolve {
   pub fn to_inner_options(
     self,
-    cache: Arc<nodejs_resolver::Cache>,
     resolve_to_context: bool,
     dependency_type: DependencyCategory,
-  ) -> nodejs_resolver::Options {
+  ) -> oxc_resolver::ResolveOptions {
     let options = self.merge_by_dependency(dependency_type);
     let tsconfig = options.tsconfig;
-    let enforce_extension = nodejs_resolver::EnforceExtension::Auto;
-    let external_cache = Some(cache);
-    let description_file = String::from("package.json");
+    let enforce_extension = oxc_resolver::EnforceExtension::Auto;
+    let description_files = vec!["package.json".to_string()];
     let extensions = options.extensions.unwrap_or_else(|| {
       vec![".tsx", ".ts", ".jsx", ".js", ".mjs", ".json"]
         .into_iter()
@@ -81,40 +79,45 @@ impl Resolve {
     let main_fields = options
       .main_fields
       .unwrap_or_else(|| vec![String::from("module"), String::from("main")]);
-    let browser_field = options.browser_field.unwrap_or(true);
-    let condition_names = std::collections::HashSet::from_iter(
-      options
-        .condition_names
-        .unwrap_or_else(|| vec!["module".to_string(), "import".to_string()]),
-    );
+    let alias_fields = if options.browser_field.unwrap_or(true) {
+      vec!["browser".to_string()]
+    } else {
+      vec![]
+    };
+    let condition_names = options
+      .condition_names
+      .unwrap_or_else(|| vec!["module".to_string(), "import".to_string()]);
     let modules = options
       .modules
       .unwrap_or_else(|| vec!["node_modules".to_string()]);
     let fallback = options.fallback.unwrap_or_default();
     let fully_specified = options.fully_specified.unwrap_or_default();
-    let exports_field = options
+    let exports_fields = options
       .exports_field
       .unwrap_or_else(|| vec![vec!["exports".to_string()]]);
     let extension_alias = options.extension_alias.unwrap_or_default();
-    nodejs_resolver::Options {
+    oxc_resolver::ResolveOptions {
       fallback,
       modules,
       extensions,
       enforce_extension,
       alias,
       prefer_relative,
-      external_cache,
       symlinks,
-      description_file,
+      alias_fields,
+      description_files,
       main_files,
       main_fields,
-      browser_field,
       condition_names,
       tsconfig,
       resolve_to_context,
       fully_specified,
-      exports_field,
+      exports_fields,
       extension_alias,
+      // not supported by rspack
+      prefer_absolute: false,
+      restrictions: vec![],
+      roots: vec![],
     }
   }
 
@@ -269,7 +272,7 @@ mod test {
     use crate::AliasMap;
     let base = Resolve {
       extensions: Some(to_string(vec!["a", "b"])),
-      alias: Some(vec![("c".to_string(), vec![AliasMap::Ignored])]),
+      alias: Some(vec![("c".to_string(), vec![AliasMap::Ignore])]),
       symlinks: Some(false),
       main_files: Some(to_string(vec!["d", "e", "f"])),
       main_fields: Some(to_string(vec!["g", "h", "i"])),
@@ -279,7 +282,7 @@ mod test {
     };
     let another = Resolve {
       extensions: Some(to_string(vec!["a1", "b1"])),
-      alias: Some(vec![("c2".to_string(), vec![AliasMap::Ignored])]),
+      alias: Some(vec![("c2".to_string(), vec![AliasMap::Ignore])]),
       prefer_relative: Some(true),
       browser_field: Some(true),
       main_files: Some(to_string(vec!["d1", "e", "..."])),
@@ -305,8 +308,8 @@ mod test {
     assert_eq!(
       options.alias.expect("should be Ok"),
       vec![
-        ("c2".to_string(), vec![AliasMap::Ignored]),
-        ("c".to_string(), vec![AliasMap::Ignored])
+        ("c2".to_string(), vec![AliasMap::Ignore]),
+        ("c".to_string(), vec![AliasMap::Ignore])
       ]
     );
     assert_eq!(options.condition_names.expect("should be Ok").len(), 3);

@@ -7,7 +7,6 @@ use std::{
   sync::Arc,
 };
 
-use nodejs_resolver::EnforceExtension;
 use rspack_error::{internal_error, IntoTWithDiagnosticArray, Result, TWithDiagnosticArray};
 use rspack_hash::RspackHash;
 use rspack_identifier::{Identifiable, Identifier};
@@ -561,7 +560,7 @@ impl ContextModule {
       dir: &Path,
       dependencies: &mut Vec<BoxModuleDependency>,
       options: &ContextModuleOptions,
-      resolve_options: &nodejs_resolver::Options,
+      resolve_options: &oxc_resolver::ResolveOptions,
     ) -> Result<()> {
       if dir.is_dir() {
         for entry in fs::read_dir(dir)? {
@@ -681,12 +680,12 @@ pub fn normalize_context(str: &str) -> String {
 }
 
 fn alternative_requests(
-  resolve_options: &nodejs_resolver::Options,
+  resolve_options: &oxc_resolver::ResolveOptions,
   mut items: Vec<AlternativeRequest>,
 ) -> Vec<AlternativeRequest> {
   // TODO: should respect fullySpecified resolve options
   for mut item in std::mem::take(&mut items) {
-    if !matches!(resolve_options.enforce_extension, EnforceExtension::Enabled) {
+    if !resolve_options.enforce_extension.is_enabled() {
       items.push(item.clone());
     }
     for ext in &resolve_options.extensions {

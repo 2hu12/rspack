@@ -20,7 +20,9 @@ tokio           = { workspace = true, features = ["rt", "rt-multi-thread", "macr
 
 nodejs-resolver   = { workspace = true }
 once_cell         = { workspace = true }
+oxc_resolver      = { workspace = true }
 regex             = { workspace = true }
 rspack_error      = { path = "../rspack_error" }
 rspack_identifier = { path = "../rspack_identifier" }
 rspack_sources    = { workspace = true }
+serde_json        = { workspace = true }

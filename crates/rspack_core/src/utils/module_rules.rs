@@ -104,8 +104,7 @@ pub async fn module_rule_matcher<'a>(
     if let Some(resource_description) = &resource_data.resource_description {
       for (k, matcher) in description_data {
         if let Some(v) = resource_description
-          .data()
-          .raw()
+          .raw_json()
           .get(k)
           .and_then(|v| v.as_str())
         {

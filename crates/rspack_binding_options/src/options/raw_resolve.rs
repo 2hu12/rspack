@@ -44,14 +44,14 @@ fn normalize_alias(alias: Option<RawAliasOption>) -> anyhow::Result<Option<Alias
             .into_iter()
             .map(|value| {
               if let Some(s) = value.as_str() {
-                Ok(AliasMap::Target(s.to_string()))
+                Ok(AliasMap::Path(s.to_string()))
               } else if let Some(b) = value.as_bool() {
                 if b {
                   Err(anyhow::Error::msg(format!(
                     "Alias should not be true in {key}"
                   )))
                 } else {
-                  Ok(AliasMap::Ignored)
+                  Ok(AliasMap::Ignore)
                 }
               } else {
                 Err(anyhow::Error::msg(format!(

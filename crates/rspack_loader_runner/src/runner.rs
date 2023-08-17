@@ -5,8 +5,9 @@ use std::{
 };
 
 use derivative::Derivative;
-use nodejs_resolver::DescriptionData;
+// use nodejs_resolver::DescriptionData;
 use once_cell::sync::OnceCell;
+use oxc_resolver::PackageJson;
 use rspack_error::{
   internal_error, Diagnostic, IntoTWithDiagnosticArray, Result, TWithDiagnosticArray,
 };
@@ -31,7 +32,7 @@ pub struct ResourceData {
   pub resource_query: Option<String>,
   /// Resource fragment with `#` prefix
   pub resource_fragment: Option<String>,
-  pub resource_description: Option<Arc<DescriptionData>>,
+  pub resource_description: Option<Arc<PackageJson>>,
   pub mimetype: Option<String>,
   pub parameters: Option<String>,
   pub encoding: Option<String>,
@@ -79,12 +80,12 @@ impl ResourceData {
     self
   }
 
-  pub fn description(mut self, v: Arc<DescriptionData>) -> Self {
+  pub fn description(mut self, v: Arc<PackageJson>) -> Self {
     self.resource_description = Some(v);
     self
   }
 
-  pub fn description_optional(mut self, v: Option<Arc<DescriptionData>>) -> Self {
+  pub fn description_optional(mut self, v: Option<Arc<PackageJson>>) -> Self {
     self.resource_description = v;
     self
   }

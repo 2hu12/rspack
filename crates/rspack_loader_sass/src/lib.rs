@@ -294,7 +294,7 @@ fn start_resolving<'r, 'c, I: Iterator<Item = String>>(
       .resolve
       .resolve(resolution.context, &possible_request)
     {
-      Some(resource.path)
+      Some(resource.path().to_path_buf())
     } else {
       start_resolving(resolutions)
     }

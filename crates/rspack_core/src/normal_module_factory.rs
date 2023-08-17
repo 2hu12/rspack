@@ -305,11 +305,11 @@ impl NormalModuleFactory {
         .await;
       match resource_data {
         Ok(ResolveResult::Resource(resource)) => {
-          let uri = resource.join().display().to_string();
-          ResourceData::new(uri, resource.path)
-            .query_optional(resource.query)
-            .fragment_optional(resource.fragment)
-            .description_optional(resource.description)
+          let uri = resource.full_path().display().to_string();
+          ResourceData::new(uri, resource.path().to_path_buf())
+            .query_optional(resource.query().map(ToString::to_string))
+            .fragment_optional(resource.fragment().map(ToString::to_string))
+            .description_optional(resource.package_json().cloned())
         }
         Ok(ResolveResult::Ignored) => {
           let ident = format!("{}/{}", &data.context, request_without_match_resource);
@@ -363,10 +363,10 @@ impl NormalModuleFactory {
               .resolve_module_occasion
               .use_cache(new_args, |args| resolve(args, plugin_driver))
               .await;
-            if let Ok(ResolveResult::Resource(resource)) = resource_data {
+            if let Ok(crate::ResolveResult::Resource(resource)) = resource_data {
               // TODO: Here windows resolver will return normalized path.
               // eg. D:\a\rspack\rspack\packages\rspack\tests\fixtures\errors\resolve-fail-esm\answer.js
-              if let Some(extension) = resource.path.extension() {
+              if let Some(extension) = resource.path().extension() {
                 let resource = format!(
                   "{request_without_match_resource}.{}",
                   extension.to_string_lossy()
@@ -592,7 +592,7 @@ impl NormalModuleFactory {
     }
     let resource_path = &resource_data.resource_path;
     let description = resource_data.resource_description.as_ref()?;
-    let package_path = description.dir().as_ref();
+    let package_path = description.directory();
     let side_effects = SideEffects::from_description(description)?;
 
     let relative_path = resource_path.relative(package_path);

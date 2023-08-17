@@ -91,7 +91,7 @@ impl Plugin for JsLoaderResolver {
 
     match resolve_result {
       ResolveResult::Resource(resource) => {
-        let resource = resource.path.to_string_lossy().to_string() + rest.unwrap_or_default();
+        let resource = resource.path().to_string_lossy().to_string() + rest.unwrap_or_default();
         Ok(Some(Arc::new(JsLoaderAdapter {
           identifier: resource.into(),
           runner: self.js_loader_runner.clone(),

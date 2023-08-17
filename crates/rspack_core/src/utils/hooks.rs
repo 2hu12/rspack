@@ -14,8 +14,7 @@ pub async fn resolve(
   plugin_driver: &SharedPluginDriver,
   //  _job_context: &mut NormalModuleFactoryContext,
 ) -> Result<ResolveResult, ResolveError> {
-  let plugin_driver = plugin_driver;
-  let importer = args.importer.map(|i| i.to_string());
+  let importer = &args.importer;
   let base_dir = args.context.as_ref();
 
   tracing::trace!(
@@ -24,100 +23,76 @@ pub async fn resolve(
     args.specifier
   );
 
-  let resolver = plugin_driver
-    .resolver_factory
-    .get(ResolveOptionsWithDependencyType {
-      resolve_options: args.resolve_options,
-      resolve_to_context: args.resolve_to_context,
-      dependency_type: args.dependency_type.clone(),
-      dependency_category: *args.dependency_category,
-    });
+  let ty = ResolveOptionsWithDependencyType {
+    resolve_options: args.resolve_options,
+    resolve_to_context: args.resolve_to_context,
+    dependency_type: args.dependency_type.clone(),
+    dependency_category: *args.dependency_category,
+  };
+  let resolver = plugin_driver.resolver_factory.get(ty);
   let result = resolver.resolve(base_dir, args.specifier);
   let (file_dependencies, missing_dependencies) = resolver.dependencies();
   args.file_dependencies.extend(file_dependencies);
   args.missing_dependencies.extend(missing_dependencies);
 
-  result.map_err(|error| match error {
-    nodejs_resolver::Error::Io(error) => {
-      ResolveError(error.to_string(), Error::Io { source: error })
-    }
-    nodejs_resolver::Error::UnexpectedJson((json_path, error)) => ResolveError(
-      format!(
-        "{error:?} in {}",
-        json_path.relative(&plugin_driver.options.context).display()
-      ),
-      Error::Anyhow {
-        source: anyhow::Error::msg(format!("{error:?} in {json_path:?}")),
-      },
-    ),
-    nodejs_resolver::Error::UnexpectedValue(error) => ResolveError(
-      error.clone(),
-      Error::Anyhow {
-        source: anyhow::Error::msg(error),
-      },
-    ),
-    nodejs_resolver::Error::CantFindTsConfig(path) => ResolveError(
-      format!("{} is not a tsconfig", path.display()),
-      internal_error!("{} is not a tsconfig", path.display()),
-    ),
-    _ => {
-      if let Some(importer) = &importer {
-        let span = args.span.unwrap_or_default();
-        // Use relative path in runtime for stable hashing
-        let (runtime_message, internal_message) = if let nodejs_resolver::Error::Overflow = error {
-          (
-            format!(
-              "Can't resolve {:?} in {} , maybe it had cycle alias",
-              args.specifier,
-              Path::new(&importer)
-                .relative(&plugin_driver.options.context)
-                .display()
-            ),
-            format!(
-              "Can't resolve {:?} in {} , maybe it had cycle alias",
-              args.specifier, importer
-            ),
-          )
-        } else {
-          (
-            format!(
-              "Failed to resolve {} in {}",
-              args.specifier,
-              base_dir.display()
-            ),
-            format!("Failed to resolve {} in {}", args.specifier, importer),
-          )
-        };
-        ResolveError(
-          runtime_message,
-          TraceableError::from_real_file_path(
-            Path::new(importer),
-            span.start as usize,
-            span.end as usize,
-            "Resolve error".to_string(),
-            internal_message.clone(),
-          )
-          .map(|e| {
-            if args.optional {
-              Error::TraceableError(e.with_severity(Severity::Warn))
-            } else {
-              Error::TraceableError(e)
-            }
-          })
-          .unwrap_or_else(|_| {
-            if args.optional {
-              Error::InternalError(InternalError::new(internal_message, Severity::Warn))
-            } else {
-              internal_error!(internal_message)
-            }
-          }),
+  result.map_err(|error| {
+    if let Some(importer) = &importer {
+      let span = args.span.unwrap_or_default();
+      // Use relative path in runtime for stable hashing
+      let (runtime_message, internal_message) = if let oxc_resolver::ResolveError::Recursion = error
+      {
+        (
+          format!(
+            "Can't resolve {:?} in {} , maybe it had cycle alias",
+            args.specifier,
+            Path::new(importer.as_str())
+              .relative(&plugin_driver.options.context)
+              .display()
+          ),
+          format!(
+            "Can't resolve {:?} in {} , maybe it had cycle alias",
+            args.specifier, importer
+          ),
         )
       } else {
-        ResolveError(
-          format!("Failed to resolve {} in project root", args.specifier),
-          internal_error!("Failed to resolve {} in project root", args.specifier),
+        (
+          format!(
+            "Failed to resolve {} in {}",
+            args.specifier,
+            base_dir.display()
+          ),
+          format!("Failed to resolve {} in {}", args.specifier, importer),
         )
-      }
+      };
+      ResolveError(
+        runtime_message,
+        TraceableError::from_real_file_path(
+          Path::new(importer.as_str()),
+          span.start as usize,
+          span.end as usize,
+          "Resolve error".to_string(),
+          internal_message.clone(),
+        )
+        .map(|e| {
+          if args.optional {
+            Error::TraceableError(e.with_severity(Severity::Warn))
+          } else {
+            Error::TraceableError(e)
+          }
+        })
+        .unwrap_or_else(|_| {
+          if args.optional {
+            Error::InternalError(InternalError::new(internal_message, Severity::Warn))
+          } else {
+            internal_error!(internal_message)
+          }
+        }),
+      )
+    } else {
+      ResolveError(
+        format!("Failed to resolve {} in project root", args.specifier),
+        internal_error!("Failed to resolve {} in project root", args.specifier),
+      )
     }
   })
 }
