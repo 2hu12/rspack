@@ -13,7 +13,7 @@ import fs from "fs";
 import path from "path";
 import { isNil } from "../util";
 import { cleverMerge } from "../util/cleverMerge";
-import * as oldBuiltins from "./builtins";
+import { SwcCssMinimizerPlugin, SwcJsMinimizerPlugin } from "../builtin-plugin";
 import {
 	getDefaultTarget,
 	getTargetProperties,
@@ -126,12 +126,6 @@ export const applyRspackOptionsDefaults = (
 		}),
 		options.resolve
 	);
-
-	// TODO: refactor builtins
-	options.builtins = oldBuiltins.deprecated_resolveBuiltins(
-		options.builtins,
-		options
-	) as any;
 };
 
 export const applyRspackOptionsBaseDefaults = (
@@ -165,7 +159,7 @@ const applyExperimentsDefaults = (
 	D(experiments, "lazyCompilation", false);
 	D(experiments, "asyncWebAssembly", false);
 	D(experiments, "newSplitChunks", true);
-	D(experiments, "css", {}); // we not align with webpack about the default value for better DX
+	D(experiments, "css", true); // we not align with webpack about the default value for better DX
 
 	if (typeof experiments.incrementalRebuild === "object") {
 		D(experiments.incrementalRebuild, "make", true);
@@ -179,20 +173,6 @@ const applyExperimentsDefaults = (
 	) {
 		experiments.incrementalRebuild.make = false;
 		// TODO: use logger to warn user enable cache for incrementalRebuild.make
-	}
-
-	if (typeof experiments.css === "object") {
-		D(
-			experiments.css,
-			"exportsOnly",
-			!targetProperties || !targetProperties.document
-		);
-		D(
-			experiments.css,
-			"localIdentName",
-			production ? "[hash]" : "[path][name][ext]__[local]"
-		);
-		D(experiments.css, "localsConvention", "asIs");
 	}
 };
 
@@ -214,10 +194,7 @@ const applySnapshotDefaults = (
 
 const applyModuleDefaults = (
 	module: ModuleOptions,
-	{
-		asyncWebAssembly,
-		css
-	}: { asyncWebAssembly: boolean; css: CssExperimentOptions | false }
+	{ asyncWebAssembly, css }: { asyncWebAssembly: boolean; css: boolean }
 ) => {
 	F(module.parser!, "asset", () => ({}));
 	F(module.parser!.asset!, "dataUrlCondition", () => ({}));
@@ -691,7 +668,11 @@ const applyOptimizationDefaults = (
 	D(optimization, "runtimeChunk", false);
 	D(optimization, "realContentHash", production);
 	D(optimization, "minimize", production);
-	A(optimization, "minimizer", () => []);
+	A(optimization, "minimizer", () => [
+		// TODO: enable this when drop support for builtins options
+		// new SwcJsMinimizerPlugin(),
+		// new SwcCssMinimizerPlugin()
+	]);
 	const { splitChunks } = optimization;
 	if (splitChunks) {
 		// A(splitChunks, "defaultSizeTypes", () =>

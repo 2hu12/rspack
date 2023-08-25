@@ -16,8 +16,7 @@ import type {
 	RawAssetResourceGeneratorOptions,
 	RawIncrementalRebuild,
 	RawModuleRuleUses,
-	RawFuncUseCtx,
-	RawCssExperimentOptions
+	RawFuncUseCtx
 } from "@rspack/binding";
 import assert from "assert";
 import { Compiler } from "../Compiler";
@@ -117,7 +116,9 @@ export const getRawOptions = (
 		},
 		experiments: getRawExperiments(options.experiments),
 		node: getRawNode(options.node),
-		profile: options.profile!
+		profile: options.profile!,
+		// TODO: remove this
+		builtins: options.builtins as any
 	};
 };
 
@@ -758,7 +759,7 @@ function getRawExperiments(
 		incrementalRebuild: getRawIncrementalRebuild(incrementalRebuild),
 		asyncWebAssembly,
 		newSplitChunks,
-		css: getRawCssExperimentOptions(css)
+		css
 	};
 }
 
@@ -776,19 +777,6 @@ function getRawIncrementalRebuild(
 	return {
 		make,
 		emitAsset
-	};
-}
-
-function getRawCssExperimentOptions(
-	css: false | CssExperimentOptions
-): RawOptions["experiments"]["css"] {
-	if (css === false) {
-		return undefined;
-	}
-	return {
-		localIdentName: css.localIdentName!,
-		localsConvention: css.localsConvention!,
-		exportsOnly: css.exportsOnly!
 	};
 }
 
