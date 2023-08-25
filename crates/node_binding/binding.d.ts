@@ -114,24 +114,15 @@ export interface BuiltinPlugin {
   options: unknown
 }
 
-export enum BuiltinPluginKind {
+export const enum BuiltinPluginKind {
   Define = 0,
   Provide = 1,
   Banner = 2,
-  SwcJsMinimizer = 3,
-  SwcCssMinimizer = 4,
-  PresetEnv = 5,
-  TreeShaking = 6,
-  ReactOptions = 7,
-  DecoratorOptions = 8,
-  NoEmitAssets = 9,
-  Emotion = 10,
-  Relay = 11,
-  PluginImport = 12,
-  DevFriendlySplitChunks = 13,
-  Progress = 14,
-  Copy = 15,
-  Html = 16
+  Progress = 3,
+  Copy = 4,
+  Html = 5,
+  SwcJsMinimizer = 6,
+  SwcCssMinimizer = 7
 }
 
 export function cleanupGlobalTrace(): void
@@ -518,6 +509,19 @@ export interface RawBannerConfig {
   exclude?: RawBannerConditions
 }
 
+export interface RawBuiltins {
+  css?: RawCssPluginConfig
+  presetEnv?: RawPresetEnv
+  treeShaking: string
+  react: RawReactOptions
+  decorator?: RawDecoratorOptions
+  noEmitAssets: boolean
+  emotion?: string
+  devFriendlySplitChunks: boolean
+  pluginImport?: Array<RawPluginImportConfig>
+  relay?: RawRelayConfig
+}
+
 export interface RawCacheGroupOptions {
   priority?: number
   test?: string
@@ -557,10 +561,14 @@ export interface RawCrossOriginLoading {
   boolPayload?: boolean
 }
 
-export interface RawCssExperimentOptions {
+export interface RawCssModulesConfig {
   localsConvention: "asIs" | "camelCase" | "camelCaseOnly" | "dashes" | "dashesOnly"
   localIdentName: string
   exportsOnly: boolean
+}
+
+export interface RawCssPluginConfig {
+  modules: RawCssModulesConfig
 }
 
 export interface RawDecoratorOptions {
@@ -587,7 +595,7 @@ export interface RawExperiments {
   incrementalRebuild: RawIncrementalRebuild
   asyncWebAssembly: boolean
   newSplitChunks: boolean
-  css?: RawCssExperimentOptions
+  css: boolean
 }
 
 export interface RawExternalItem {
@@ -824,6 +832,7 @@ export interface RawOptions {
   experiments: RawExperiments
   node?: RawNodeOption
   profile: boolean
+  builtins: RawBuiltins
 }
 
 export interface RawOutputOptions {
