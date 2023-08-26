@@ -42,11 +42,11 @@ export function configSchema() {
 			resolve: resolve().optional(),
 			resolveLoader: resolve().optional(),
 			plugins: plugins().optional(),
+			output: output().optional(),
 			// TODO(hyf0): what's the usage of this?
 			name: z.string().optional(),
 			// TODO
 			devServer: z.object({}).optional(),
-			output: output().optional(),
 			builtins: builtins().optional(),
 			module: z.any().optional(),
 			profile: z.boolean().optional()
